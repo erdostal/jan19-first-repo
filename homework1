@@ -1,0 +1,11 @@
+#Setting up Workspace
+mkdir BCB546x
+mv fang_et_al_genotypes.txt BCB546x
+mv snp_positions.txt BCB546x
+head -n 1 fang_et_al_genotypes.txt #check column types
+head snp_positions.txt
+
+#Transposing Awk
+nano transpose.awk #create file for transpose script
+awk -f transpose.awk fang_et_al_genotypes.txt > transposed_genotypes.txt
+head -1 transposed_genotypes.txt #check that file transposed correctly
