@@ -5,15 +5,50 @@ mv snp_positions.txt BCB546x
 head -n 1 fang_et_al_genotypes.txt #check column types
 head snp_positions.txt
 
-#Transposing Awk
-nano transpose.awk #create file for transpose script
-awk -f transpose.awk fang_et_al_genotypes.txt > transposed_genotypes.txt
-head -1 transposed_genotypes.txt #check that file transposed correctly
-
 #Remove unneccessary columns from snp_positions.txt
 awk '{ print $1 "\t" $3 "\t" $4 }' snp_position.txt > snp_cut.txt
 
-#Combine snp_cut.txt and transposed_genotypes.txt
-join -1 1 -2 1 snp_cut.txt transposed_genotypes.txt
+# get the maize lines out
+grep 'Sample_ID\|ZMMIL\|ZMMLR\|ZMMMR' fang_et_al_genotypes.txt | sed 's/Sample_ID/SNP_ID/' > maize.lines
 
-#Remove ZMMIL, ZMMLR, and ZMMMR to a separate file
+# get teosinte lines out
+grep 'Sample_ID\|ZMPBA\|ZMPIL\|ZMPJA' fang_et_al_genotypes.txt | sed 's/Sample_ID/SNP_ID/' > teosinte.lines
+
+# transpose
+awk -f transpose.awk maize.lines > maize.transposed
+awk -f transpose.awk teosinte.lines > teosinte.transposed
+
+# sort by column 1, using only the information in column 1 
+(head -1 maize.transposed && tail -n +2 maize.transposed | sort -k1,1) > maize.sort
+(head -1 teosinte.transposed && tail -n +2 teosinte.transposed | sort -k1,1) > teosinte.sort
+(head -1 snp_cut.txt && tail -n +2 snp_cut.txt | sort -k1,1) > snp_cut_sort.txt
+
+# join based on column 1 in both files
+join -i -t $'\t' -1 1 -2 1 snp_cut_sort.txt maize.sort > maize.join
+join -i -t $'\t' -1 1 -2 1 snp_cut_sort.txt teosinte.sort > teosinte.join
+
+# replace ? with hyphens
+sed 's/?/-/g' maize.join > maize.join.dash
+sed 's/?/-/g' teosinte.join > teosinte.join.dash
+
+# create files for each chromosome for maize.join, maize.join.dash, teosinte.join, teosinte.join.dash
+for chr in {1..10}; do awk -v awk_chr=$chr '{ if ($3==awk_chr || $1=="SNP_ID") print $0}' maize.join | sort -k3,1 > maize.chr$chr; done
+ 
+for chr in {1..10}; do awk -v awk_chr=$chr '{ if ($3==awk_chr || $1=="SNP_ID") print $0}' maize.join.dash | sort -k3,1 -r > maize.dash.chr$chr; done
+
+for chr in {1..10}; do awk -v awk_chr=$chr '{ if ($3==awk_chr || $1=="SNP_ID") print $0}' teosinte.join | sort -k3,1 > teosinte.chr$chr; done
+
+for chr in {1..10}; do awk -v awk_chr=$chr '{ if ($3==awk_chr || $1=="SNP_ID") print $0}' teosinte.join.dash | sort -k3,1 -r> teosinte.dash.chr$chr; done
+
+# create folders to contain maize and teosinte files, with folders within to sort dash vs question. move files into respective folders
+mkdir maize.folder
+mkdir teosinte.folder
+cd maize.folder
+mkdir maize.dash
+mkdir maize.question
+cd ..
+mkdir teosinte.folder
+cd teosinte.folder
+mkdir teosinte.dash
+mkdir teosinte.question
+
