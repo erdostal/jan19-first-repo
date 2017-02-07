@@ -15,3 +15,5 @@ awk '{ print $1 "\t" $3 "\t" $4 }' snp_position.txt > snp_cut.txt
 
 #Combine snp_cut.txt and transposed_genotypes.txt
 join -1 1 -2 1 snp_cut.txt transposed_genotypes.txt
+
+#Remove ZMMIL, ZMMLR, and ZMMMR to a separate file
