@@ -9,3 +9,9 @@ head snp_positions.txt
 nano transpose.awk #create file for transpose script
 awk -f transpose.awk fang_et_al_genotypes.txt > transposed_genotypes.txt
 head -1 transposed_genotypes.txt #check that file transposed correctly
+
+#Remove unneccessary columns from snp_positions.txt
+awk '{ print $1 "\t" $3 "\t" $4 }' snp_position.txt > snp_cut.txt
+
+#Combine snp_cut.txt and transposed_genotypes.txt
+join -1 1 -2 1 snp_cut.txt transposed_genotypes.txt
