@@ -1,0 +1,136 @@
+#Part 1 Data manipulation/clean up
+
+#Reading in data sets from working directory
+fang <- read.delim("fang_et_al_genotypes.txt")
+snps <- read.delim("snp_position.txt")
+
+#Removing Maize and Teosinte lines into their own files to manipulate
+#Maize
+maize_lines <- c("ZMMIL", "ZMMLR", "ZMMMR") 
+maize <- fang[fang$Group %in% maize_lines, ]
+
+#Teosinte
+teosinte_lines <- c("ZMPBA", "ZMPIL", "ZMPJA") 
+teosinte <- fang[fang$Group %in% teosinte_lines, ]
+
+#Transpose Maize/Teosinte fang files
+maizetrans <- t(maize)
+teosintetrans <- t(teosinte)
+
+#Change SNP.ID to row names in snps file, remove duplicate ID names
+rownames(snps) <- snps$SNP_ID
+snps$SNP_ID = NULL
+
+#Merge by rownnames, remove extra columns include extra columns
+maize.merge <- merge(snps,maizetrans,by="row.names", all = TRUE)
+maize.merge <- subset(maize.merge, select = -c(2,5:15) )
+teosinte.merge <- merge(snps,teosintetrans,by="row.names")
+teosinte.merge <- subset(teosinte.merge, select = -c(2,5:15) )
+
+#Add Group vector back to merged data sets
+maize.merge <- cbind(maize.merge, maize.header)
+
+#Sort merge files by position, ascending order
+#Sort merge files by position, descending order
+#library(gtools)
+#maize.merge$Position <- mixedsort(maize.merge$Position)
+#teosinte.merge$Position <- mixedsort(teosinte.merge$Position)
+#CEG note: if you look at the $Position column on either, it is quasi-sorted by value, but it does the same thing as excel or anything else when it doesn't think that the value is a number
+
+maize.merge$Position <- gsub("unknown", "91919191919", maize.merge$Position)
+maize.merge$Position <- gsub("multiple", "99999999999", maize.merge$Position)
+maize.merge$Position <- as.numeric(maize.merge$Position)
+mdx = order(maize.merge$Position)
+negmdx = order(maize.merge$Position, decreasing=TRUE)
+maize.sorted = maize.merge[mdx,]
+maize.sorted$Position <- gsub("91919191919", "unknown", maize.sorted$Position)
+maize.sorted$Position <- gsub("99999999999", "multiple", maize.sorted$Position)
+maize.decsort = maize.merge[negmdx,]
+maize.decsort$Position <- gsub("91919191919", "unknown", maize.decsort$Position)
+maize.decsort$Position <- gsub("99999999999", "multiple", maize.decsort$Position)
+
+
+teosinte.merge$Position <- gsub("unknown", "91919191919", teosinte.merge$Position)
+teosinte.merge$Position <- gsub("multiple", "99999999999", teosinte.merge$Position)
+teosinte.merge$Position <- as.numeric(teosinte.merge$Position)
+ndx = order(teosinte.merge$Position)
+negndx = order(teosinte.merge$Position, decreasing=TRUE)
+teosinte.sorted = teosinte.merge[ndx,]
+teosinte.sorted$Position <- gsub("91919191919", "unknown", teosinte.sorted$Position)
+teosinte.sorted$Position <- gsub("99999999999", "multiple", teosinte.sorted$Position)
+teosinte.decsort = teosinte.merge[negndx,]
+teosinte.decsort$Position <- gsub("91919191919", "unknown", teosinte.decsort$Position)
+teosinte.decsort$Position <- gsub("99999999999", "multiple", teosinte.decsort$Position)
+
+#Sort by Chromosome column for mazie and teosinte, replace ? for descending files and print to CSV
+#Maize sort
+for(i in 1:10){
+  temp_df <- maize.sorted[maize.sorted[,2]==i,]
+  write.csv(temp_df, paste("maize.chr",i,"asc.csv",sep=""),row.names=F)
+  name_asc <- paste("maize.asc.chr",i,sep="")
+  assign(name_asc, temp_df)
+  temp_des <- maize.decsort[maize.decsort[,2]==i,]
+  write.csv(temp_df, paste("maize.chr",i,"des.csv",sep=""),row.names=F)
+  temp_rep <- as.data.frame(lapply(temp_des, FUN = function(x) as.character(gsub("\\?", "-", x))))
+write.csv(temp_rep, paste("maize.chr",i,"rep.csv",sep=""),row.names=F)
+name_des <- paste("maize.des.chr",i,sep="")
+assign(name_des, temp_rep)
+}
+
+for(i in 1:10){
+  temp_df <- teosinte.sorted[teosinte.sorted[,2]==i,]
+  write.csv(temp_df, paste("teosinte.chr",i,"asc.csv",sep=""),row.names=F)
+  name_asc <- paste("teosinte.asc.chr",i,sep="")
+  assign(name_asc, temp_df)
+  temp_des <- teosinte.decsort[teosinte.decsort[,2]==i,]
+  write.csv(temp_df, paste("teosinte.chr",i,"des.csv",sep=""),row.names=F)
+  temp_rep <- as.data.frame(lapply(temp_des, FUN = function(x) as.character(gsub("\\?", "-", x))))
+  write.csv(temp_rep, paste("teosinte.chr",i,"rep.csv",sep=""),row.names=F)
+  name_des <- paste("teosinte.des.chr",i,sep="")
+  assign(name_des, temp_rep)
+}
+
+#Part 2 Visualization 
+
+#Melting data to create better visuals 
+library(reshape2)
+fang.melt <- melt(fang, id.vars= c("Sample_ID", "JG_OTU", "Group"), measure.vars = c(4:986))
+ggplot(fang.melt) + geom_point(aes(x=Chromosome))
+
+
+#Determine working directory to create vector of file names to be melted, applied for each folder containing relevant files
+#Began this section as if each chromosome was being plotted based on files generated in part 1. These files did not have Group
+#And I could not rework code to include Group
+getwd()
+dir <- "C:/Users/erdostal.IASTATE/Documents/R/eeob546xhomework2/maizeascending/"
+fileL<-grep( "asc", list.files(dir), value=TRUE)
+for(file in fileL){
+  x <- read.csv(paste0(dir,file))
+  temp_df <- melt(file, id.vars= c("Row.names", "Chromosome", "Position"), measure.vars=c(4:1576))
+  ggplot(temp_df) + geom_point(aes(x=Chromosome, y=value), color=)
+  write.csv(temp_df, paste(file, "melt.csv", sep=""), row.names = FALSE)
+}
+  
+dir <- "C:/Users/erdostal.IASTATE/Documents/R/eeob546xhomework2/maizedescending/"
+fileL<-grep( "des", list.files(dir), value=TRUE)
+for(file in fileL){
+  x <- read.csv(paste0(dir,file))
+  temp_df <- melt(file, id.vars= c("Row.names", "Chromosome", "Position"), measure.vars=c(4:1576))
+  write.csv(temp_df, paste(file, "melt.csv", sep=""), row.names = FALSE)
+}
+
+dir <- "C:/Users/erdostal.IASTATE/Documents/R/eeob546xhomework2/teosinteascending/"
+fileL<-grep( "asc", list.files(dir), value=TRUE)
+for(file in fileL){
+  x <- read.csv(paste0(dir,file))
+  temp_df <- melt(file, id.vars= c("Row.names", "Chromosome", "Position"), measure.vars=c(4:1576))
+  write.csv(temp_df, paste(file, "melt.csv", sep=""), row.names = FALSE)
+}
+
+dir <- "C:/Users/erdostal.IASTATE/Documents/R/eeob546xhomework2/teosintedescending/"
+fileL<-grep( "des", list.files(dir), value=TRUE)
+for(file in fileL){
+  x <- read.csv(paste0(dir,file))
+  temp_df <- melt(file, id.vars= c("Row.names", "Chromosome", "Position"), measure.vars=c(4:1576))
+  write.csv(temp_df, paste(file, "melt.csv", sep=""), row.names = FALSE)
+}
